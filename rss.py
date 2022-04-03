@@ -1,28 +1,65 @@
-from asyncore import dispatcher
-import telegram
-from telegram.ext import Updater, CallbackContext, CommandHandler
+from telegram.ext import Updater, CommandHandler
 from setting import TOKEN, chat_id
 import feedparser
+import sqlite3
 
-rss_list = []
 
-updater = Updater(token=TOKEN)
-dispatcher = updater.dispatcher
+def init_db():
+    conn = sqlite3.connect('rss.db')
+    c = conn.cursor()
+    c.execute("CREATE TABLE rss (title text, link text, post text)")
+
+
+def connect_db():
+    global conn
+    conn = sqlite3.connect('rss.db')
+    print("database connect success!")
+
+
+def sqlite_add(title, link, post):
+    connect_db()
+    c = conn.cursor()
+    print(c)
+    data = ((title, link, post))
+    c.execute("INSERT INTO rss('title', 'link', 'post') VALUES(?, ?, ?)", data)
+    conn.commit()
+    conn.close()
+
+
+def get_all_rss():
+    connect_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM rss")
+    rows = c.fetchall()
+    conn.close()
+    return rows
 
 
 def add(update, context):
-    rss_list.append(context.args[0])
+    rss_title = context.args[0]
+    rss_link = context.args[1]
+
+    rss_d = feedparser.parse(rss_link)
+
+    length = len(rss_d["entries"]) if len(rss_d["entries"]) < 10 else 10
+    for i in range(length):
+        sqlite_add(rss_title, rss_link, rss_d["entries"][i]["link"])
 
 
 def get(update, context):
-    for rss_url in rss_list:
-        d = feedparser.parse(rss_url)
-        for post in d.entries:
-            context.bot.send_message(
-                chat_id=chat_id, text=post.title+"\n"+post.link)
+    for rss in get_all_rss():
+        context.bot.send_message(
+            chat_id=chat_id, text="Title: "+rss[0]+"\nLink: "+rss[1]+"\nPost: "+rss[2])
 
 
-dispatcher.add_handler(CommandHandler('add', add))
-dispatcher.add_handler(CommandHandler('get', get))
+def main():
+    init_db()
+    updater = Updater(token=TOKEN)
+    dispatcher = updater.dispatcher
+    dispatcher.add_handler(CommandHandler('add', add))
+    dispatcher.add_handler(CommandHandler('get', get))
+    updater.start_polling()
 
-updater.start_polling()
+
+if __name__ == '__main__':
+    main()
