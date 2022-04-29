@@ -12,7 +12,12 @@ Use telegram to get newletter or blog
 ## Set your settings
 * get you chat_id and token
 * new a python file(settings.py recommended)
+* set the settings like this
+```python
+TOKEN = 'YOUR_TOKEN'
+chat_id = YOUR_CHAT_ID
+```
 
 ## Last
-* git clone https://github.com/Justin-Xiang/my-feed.git
 * run rss.py
+
